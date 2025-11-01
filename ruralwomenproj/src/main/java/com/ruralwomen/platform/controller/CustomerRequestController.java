@@ -9,9 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/custom-requests")
+@CrossOrigin
 public class CustomerRequestController {
 
     @Autowired
@@ -25,9 +27,14 @@ public class CustomerRequestController {
     public ResponseEntity<?> createRequest(@RequestBody Map<String, String> requestBody) {
         // Extract request data
         String customerName = requestBody.get("customerName");
-        String customerEmail = requestBody.get("customerEmail");
-        String prompt = requestBody.get("prompt");
-        String artisanId = requestBody.get("artisanId");
+        String customerEmail = requestBody.get("customerEmail"); // you can store if you extend model
+        String prompt = requestBody.get("prompt");               // description / requested product
+        String artisanId = requestBody.get("artisanId");        // artisan's _id in women collection
+
+        // validate required fields
+        if (customerName == null || prompt == null || artisanId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing required fields"));
+        }
 
         // Check if selected artisan exists
         Optional<Women> artisanOptional = womenRepository.findById(artisanId);
@@ -36,33 +43,41 @@ public class CustomerRequestController {
                     .body(Map.of("error", "Selected artisan not found"));
         }
 
-        // Save request in customerRequest collection
-        CustomerRequest customerRequest = new CustomerRequest(customerName, customerEmail, prompt, artisanId);
-        customerRequestRepository.save(customerRequest);
+        // Create a CustomerRequest object.
+        // Mapping: prompt -> requestedProduct (you may extend model to include description/email)
+        CustomerRequest customerRequest = new CustomerRequest();
+        customerRequest.setCustomerName(customerName);
+        customerRequest.setRequestedProduct(prompt);
+        customerRequest.setAssignedWoman(artisanId); // store artisan's id
+        customerRequest.setStatus("Pending");
+        customerRequest.setPrice(null); // or parse from requestBody if present
 
-        // Add request to artisan's customRequests list
+        // Save request in customer_requests collection
+        CustomerRequest savedRequest = customerRequestRepository.save(customerRequest);
+
+        // Add request to artisan's customRequests list (store the full request object)
         Women artisan = artisanOptional.get();
         if (artisan.getCustomRequests() == null) {
             artisan.setCustomRequests(new ArrayList<>());
         }
-        artisan.getCustomRequests().add(prompt);
+        artisan.getCustomRequests().add(savedRequest);
         womenRepository.save(artisan);
 
         // Return response
         return ResponseEntity.ok(Map.of(
                 "message", "Request submitted successfully",
-                "requestId", customerRequest.getId()
+                "requestId", savedRequest.getId()
         ));
     }
 
-    // 2️⃣ Get all requests for a specific artisan
+    // 2️⃣ Get all requests for a specific artisan (by artisan id)
     @GetMapping("/artisan/{artisanId}")
     public ResponseEntity<List<CustomerRequest>> getRequestsForArtisan(@PathVariable String artisanId) {
-        // Filter requests by artisanId
+        // Filter requests by artisanId (assignedWoman stores artisan id)
         List<CustomerRequest> requests = customerRequestRepository.findAll()
                 .stream()
-                .filter(r -> r.getArtisanId().equals(artisanId))
-                .toList();
+                .filter(r -> artisanId.equals(r.getAssignedWoman()))
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(requests);
     }
