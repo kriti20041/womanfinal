@@ -1,69 +1,50 @@
 package com.ruralwomen.platform.service;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.ruralwomen.platform.model.Product;
 import com.ruralwomen.platform.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
+import java.util.Map;
 
 @Service
 public class ProductService {
 
-    private static final String UPLOAD_DIR = "uploads/";
-
     @Autowired
     private ProductRepository productRepository;
 
-    public Product saveProduct(MultipartFile image,
-                               String name,
-                               String description,
-                               String category,
-                               String village,
-                               String artisanName,
-                               String userId) {
+    @Autowired
+    private MarketPriceService marketPriceService;
 
-        try {
-            // 1️⃣ Ensure upload directory exists
-            File uploadDir = new File(UPLOAD_DIR);
-            if (!uploadDir.exists()) {
-                uploadDir.mkdirs();
-            }
+    @Autowired
+    private Cloudinary cloudinary;
 
-            // 2️⃣ Save the uploaded file
-            String fileName = Instant.now().getEpochSecond() + "_" + image.getOriginalFilename();
-            Path filePath = Paths.get(UPLOAD_DIR + fileName);
-            Files.copy(image.getInputStream(), filePath);
+    public Product saveProduct(MultipartFile file, String name, String description, String category,
+                               String village, String artisanName, String createdByUserId) throws IOException {
 
-            // 3️⃣ Create Product object
-            Product product = new Product();
-            product.setName(name);
-            product.setDescription(description);
-            product.setCategory(category);
-            product.setVillage(village);
-            product.setArtisanName(artisanName);
-            product.setCreatedByUserId(userId);
-            product.setImageUrl("/uploads/" + fileName);
+        // 1️⃣ Upload image to Cloudinary
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                ObjectUtils.asMap("folder", "products"));
 
-            // Temporary: we’ll later add AI-based market price prediction here
-            product.setPrice(0.0);
+        String imageUrl = (String) uploadResult.get("secure_url");
 
-            // 4️⃣ Save to MongoDB
-            return productRepository.save(product);
+        // 2️⃣ Fetch real market price from SerpApi
+        double predictedPrice = marketPriceService.fetchAverageMarketPrice(name + " " + category);
 
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save product image", e);
-        }
-    }
+        // 3️⃣ Save product to MongoDB
+        Product product = new Product();
+        product.setName(name);
+        product.setDescription(description);
+        product.setCategory(category);
+        product.setImageUrl(imageUrl);
+        product.setVillage(village);
+        product.setArtisanName(artisanName);
+        product.setCreatedByUserId(createdByUserId);
+        product.setPrice(predictedPrice);
 
-    // ✅ Optional: Get all products
-    public Iterable<Product> getAllProducts() {
-        return productRepository.findAll();
+        return productRepository.save(product);
     }
 }

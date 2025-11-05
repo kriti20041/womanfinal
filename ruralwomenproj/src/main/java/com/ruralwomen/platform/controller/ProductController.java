@@ -3,7 +3,6 @@ package com.ruralwomen.platform.controller;
 import com.ruralwomen.platform.model.Product;
 import com.ruralwomen.platform.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,21 +11,17 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProductController {
 
     @Autowired
-    private ProductService productService;   // ✅ This injects your service automatically
+    private ProductService productService;
 
     @PostMapping("/upload")
-    public ResponseEntity<Product> uploadProduct(
-            @RequestParam("image") MultipartFile image,
-            @RequestParam("name") String name,
-            @RequestParam("description") String description,
-            @RequestParam("category") String category,
-            @RequestParam("village") String village,
-            @RequestParam("artisanName") String artisanName,
-            @RequestParam("userId") String userId) {
+    public Product uploadProduct(@RequestParam("file") MultipartFile file,
+                                 @RequestParam("name") String name,
+                                 @RequestParam("description") String description,
+                                 @RequestParam("category") String category,
+                                 @RequestParam("village") String village,
+                                 @RequestParam("artisanName") String artisanName,
+                                 @RequestParam("createdByUserId") String createdByUserId) throws Exception {
 
-        Product savedProduct = productService.saveProduct(
-                image, name, description, category, village, artisanName, userId);
-
-        return ResponseEntity.ok(savedProduct);
+        return productService.saveProduct(file, name, description, category, village, artisanName, createdByUserId);
     }
 }
