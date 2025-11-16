@@ -5,6 +5,7 @@ import com.ruralwomen.platform.model.Women;
 import com.ruralwomen.platform.repository.CustomerRequestRepository;
 import com.ruralwomen.platform.repository.WomenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.annotation.Transient;
 import org.springframework.stereotype.Service;
 
 @Service

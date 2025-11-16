@@ -1,6 +1,7 @@
 package com.ruralwomen.platform.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +41,8 @@ public class Women {
 
     public List<String> getSkills() { return skills; }
     public void setSkills(List<String> skills) { this.skills = skills; }
-
+    @Transient
     public List<CustomerRequest> getCustomRequests() { return customRequests; }
+
     public void setCustomRequests(List<CustomerRequest> customRequests) { this.customRequests = customRequests; }
 }
